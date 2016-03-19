@@ -173,6 +173,13 @@ void SeekthermalRos::publishingThermalImages()
       //subtract most recent calibration frame
       if (!last_calibration_frame_.isEmpty())
         *frame -= last_calibration_frame_;
+	  
+	  // calculate absolute temperature
+	  // (Parameters are not very accurate but having correct order.
+	  //  I hope someone having isothermal bath can make accurate ones.)
+	  float temp = 155.8 - 0.03224 * frame->getTemperature();
+	  *frame *= 1.0 / 35.16; // Gain
+	  *frame += temp + 10.0; // Offset
 
       static Frame mean_comp;
 
@@ -184,10 +191,6 @@ void SeekthermalRos::publishingThermalImages()
           cvImage_raw.at<float>(y, x) = value;
         }
       }
-
-      // normalize
-      // TODO min max?
-      frame->normalize(-1300,0);
 
       if (show_debug_images_)
       {
@@ -356,7 +359,9 @@ void SeekthermalRos::publishingThermalImages()
           Mat cvImage = Mat(frame->getHeight(), frame->getWidth(), CV_8UC1);
           for (size_t x = 0; x < frame->getWidth(); ++x)
             for (size_t y = 0; y < frame->getHeight(); ++y) {
-              float value = (*frame)(x, y)*255.0;
+              float value = (*frame)(x, y) * 8.0 - 60.0;
+			  if(value < 0) value = 0;
+			  if(value > 255) value = 255;
               cvImage.at<uchar>(y,x) = value;
             }
 
